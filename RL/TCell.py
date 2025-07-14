@@ -85,30 +85,6 @@ class TCell_Threshold(TCell):
 
 
 
-def test_TCell_Threshold(N=100):
-    # test many different TCell_Treshold instances with
-    # varying thresholds
-    # plot their results: FPR vs treshold
-    env = StochasticAPC()
-    df = pd.DataFrame()
-
-    for i in np.arange(0, 100, .2):
-        # make 100 episodes per each of the 100 different treshold levels
-        agent = TCell_Threshold(env, T=100, threshold=i/100)
-        for j in range(N):
-            R, t, transitions = agent.episode(epsilon=0.1, verbose=False)
-            final_action = transitions[-1][1]
-            final_reward = transitions[-1][2]
-            result = env.eval_action_reward(final_action, final_reward)
-            df = df._append({"result":result, "t":t}, ignore_index=True)
-
-    df = df.groupby("t")["result"].value_counts().unstack(fill_value=0)
-    df["TPR"] = df["TP"] / (df["TP"] + df["FN"])
-    print(df)
-    print(df.sum())
-    df.plot.line("t", "TPR", xlabel="search time", title="Search time vs TPR")
-    plt.show()
-
 
 
 
