@@ -92,11 +92,14 @@ class APCThresholdPolicy(Policy):
         return random choice of "call" or "skip", else return "stay"
         """
         t = state[0]
-        certainty = state[1]
-        if certainty > self.threshold or t == self.T-1:
+        q = state[1] # probability of APC being positive
+        if q > self.threshold or (t == self.T-1 and q > 0.5):
             return random.choice([
                 [0, 1, 0],
-                [0, 0, 1]
+            ])
+        elif q < (1-self.threshold) or (t == self.T-1 and q < 0.5):
+            return random.choice([
+                [0, 0, 1],
             ])
         else:
             return np.array([1, 0, 0])
@@ -111,7 +114,6 @@ class APCThresholdPolicy(Policy):
         plt.xlabel("search time")
         plt.ylabel("certainty")
         plt.title("Decision certainty over search time")
-        plt.axhline(y=self.threshold, color='r', linestyle='-')
         plt.grid(True)
         plt.legend()
         plt.show()

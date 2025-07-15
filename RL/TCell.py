@@ -41,7 +41,7 @@ class Agent():
             R += r
             transitions.append((s_t, a, r, s_t_1))
             s_t = s_t_1
-            # if verbose: print()
+            if verbose: print()
             if self.env.state_is_terminal(s_t) or s_t is None:
                 break
         if verbose:
@@ -62,7 +62,20 @@ class Agent():
         print()
 
 
-
+    def plot_transitions(self, transitions):
+        X = np.arange(1, len(transitions)+1)
+        Y = [self.env.get_certainty(t) for t in X]
+        if self.env.isPositive:
+            Y = [1-c for c in Y]
+        plt.plot(X, Y)
+        plt.xlabel("search time")
+        plt.ylabel("q")
+        plt.title("Perceived probability of APC being positive (q) over time")
+        plt.ylim(0, 1)
+        plt.axhline(y=0.5, color='gray', linestyle='dotted')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
 
 class TCell(Agent):
     def __init__(self, env:Environment, T=100):
@@ -90,13 +103,16 @@ class TCell_Threshold(TCell):
 
 
 if __name__ == "__main__":
-    # env = StochasticAPC()
-    # agent = TCell_Threshold(env, threshold=.5)
-    # print(agent.policy)
+    env = StochasticAPC()
+    print(f"APC is _{'positive' if env.isPositive else 'negative'}_\n")
+    agent = TCell_Threshold(env, threshold=.96)
+    print(agent.policy)
     # agent.policy.plot(agent)
-    # R, t, transitions = agent.episode(verbose=True)
-    # final_action = transitions[-1][1]
-    # final_reward = transitions[-1][2]
+    R, t, transitions = agent.episode(verbose=True)
+    final_action = transitions[-1][1]
+    final_reward = transitions[-1][2]
+    agent.plot_transitions(transitions)
+
     # print(f"Final action: {final_action}. Final reward: {final_reward}")
     # print("TCell decision evaluation:", env.eval_action_reward(final_action, final_reward))
-    test_TCell_Threshold()
+    # test_TCell_Threshold()

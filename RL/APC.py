@@ -12,67 +12,80 @@ from RL.Environment import Environment
 from RL import utils
 
 ##### States, Actions & Rewards #####
-# States:
-# t: timestep. starts from 0, goes to infinity
-# c: certainty. between 0 and 1. rises over time, converging to 1.
-# stop: boolean. state is terminal
+# States: Each state is an array of three values:
+# 1. the timestep `t`, natural numbers
+# 2. the perceived probability of the APC being positive `q` $\in [0, 1]$.
+    # This starts at `0.5` and gets nudged in either direction toward 0 or 1, depending on the attribute `isPositive`.
+# 3. `1` if this state is a terminal state, `0` at the start of an episode and made positive by the agent
 # different certainty functions may influence the behaviour
 
 # Actions:
-# stay: let the time advance and keep investigating the cell
-# call: terminate and trigger an immune response (classify as positive)
-# skip: terminate and trigger no immune response (classify as negative)
+# - `stay`: advance to the next timestep without making a decision
+# - `positive`: classify the APC to be `positive`
+# - `negative`: classify the APC to be `negative`
+
 
 # Rewards:
 # stay: -1
-# call & pos (TP): 100
-# call & neg (FP): -100
-# skip & pos (FN): -100
-# skip & neg (TN): 100
+# positive & pos (TP): 100
+# positive & neg (FP): -100
+# negative & pos (FN): -100
+# negative & neg (TN): 100
 
 
 class StochasticAPC(Environment):
     def __init__(self, certainty_fun=utils.rational_function):
         # actions
-        actions = ["stay", "call", "skip"]
+        actions = ["stay", "positive", "negative"]
         super().__init__(actions)
         # rewards
         self.rewards = {
             "stay": -1,
-            "call": {
+            "positive": {
                 "TP": 100,
                 "FP": -100,
             },
-            "skip": {
+            "negative": {
                 "TN": 100,
                 "FN": -100,
             }
         }
         # starting_state
-        self.starting_state = np.array([0., 0., 0.])
+        self.starting_state = np.array([0., 0.5, 0.])
         self.certainty_fun = certainty_fun
+        self.isPositive = None
+        self.reset()
 
+    def reset(self):
+        self.isPositive = np.random.choice([True, False])
 
     def state_is_terminal(self, state) -> bool:
         return state[2] == 1
 
-    def print_state(self, state):
+    @staticmethod
+    def print_state(state):
         print(f"State t={int(state[0])}, c={round(state[1], 4)}, stop={bool(state[2])}")
 
     def get_certainty(self, t):
-        # apply a certainty function
-        # you can put any other function here
-        # it should rise monotonously and ideally converge to 1
+        # returns a value between 0.5 and 1
+        # the passed function must rise monotonously and converge to 1
+        # at t=0, it is 0
+        # at t=1, it is 0.5
+        # at t -> inf, it converges to 1
+        if t == 0: return .5
         return self.certainty_fun(t)
 
     def apply_action(self, state, action):
         new_state = state.copy()
-        # advance time
+        # advance t (time)
         new_state[0] += 1
-        # recompute certainty
-        new_state[1] = self.get_certainty(new_state[0])
-        # if actions are skip or call, terminate
-        if action == "call" or action == "skip":
+        # recompute q (perceived probability of APC being positive)
+        # it is the certainty if the APC is positive, and thus converges from 0.5 to 1 at t increases,
+        # or it is 1-certainty if the APC is negative, converging from 0.5 to 0 at t increases
+        certainty = self.get_certainty(new_state[0])
+        new_state[1] = certainty if self.isPositive else 1 - certainty
+        # if actions are negative or positive, terminate
+        if action == "positive" or action == "negative":
             new_state[2] = 1
         return new_state
 
@@ -82,22 +95,22 @@ class StochasticAPC(Environment):
         # penalize him for the time it takes to investigate
         if action == "stay":
             return self.rewards["stay"]
-        # whatever the actual harmfulness of the APC
-        # whether the agent is correct is
-        # only dependent on the certainty
-        certainty = state[1]
-        guess_is_correct = random.random() < certainty
         # return for the picked action the appropriate reward
-        if action == "call":
-            if guess_is_correct: return self.rewards["call"]["TP"]
-            else: return self.rewards["call"]["FP"]
-        elif action == "skip":
-            if guess_is_correct: return self.rewards["skip"]["TN"]
-            else: return self.rewards["skip"]["FN"]
+        if self.isPositive:
+            if action == "positive":
+                return self.rewards["positive"]["TP"]
+            elif action == "negative":
+                return self.rewards["negative"]["FN"]
+        else:
+            if action == "positive":
+                return self.rewards["positive"]["FP"]
+            elif action == "negative":
+                return self.rewards["negative"]["TN"]
 
-    def eval_action_reward(self, action, reward):
-        if action == "call" and reward > 0: return "TP"
-        elif action == "call" and reward < 0: return "FP"
-        elif action == "skip" and reward > 0: return "TN"
-        elif action == "skip" and reward < 0: return "FN"
+    @staticmethod
+    def eval_action_reward(action, reward):
+        if action == "positive" and reward > 0: return "TP"
+        elif action == "positive" and reward < 0: return "FP"
+        elif action == "negative" and reward > 0: return "TN"
+        elif action == "negative" and reward < 0: return "FN"
         else: return "unknown"
