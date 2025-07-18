@@ -64,7 +64,7 @@ class StochasticAPC(Environment):
 
     @staticmethod
     def print_state(state):
-        print(f"State t={int(state[0])}, c={round(state[1], 4)}, stop={bool(state[2])}")
+        print(f"State t={int(state[0])}, q={round(state[1], 4)}, stop={bool(state[2])}")
 
     def get_certainty(self, t):
         # returns a value between 0.5 and 1
