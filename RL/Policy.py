@@ -76,7 +76,7 @@ class LinearPolicy(Policy):
         plt.ylabel("action-value")
         plt.title("Action-values per action over search time")
         plt.grid(True)
-        plt.legend()
+        # plt.legend()
         plt.show()
 
 
@@ -94,13 +94,9 @@ class APCThresholdPolicy(Policy):
         t = state[0]
         q = state[1] # probability of APC being positive
         if q > self.threshold or (t == self.T-1 and q > 0.5):
-            return random.choice([
-                [0, 1, 0],
-            ])
+            return np.array([0, q, 1-q])
         elif q < (1-self.threshold) or (t == self.T-1 and q < 0.5):
-            return random.choice([
-                [0, 0, 1],
-            ])
+            return np.array([0, 1-q, q])
         else:
             return np.array([1, 0, 0])
 
