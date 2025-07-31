@@ -1,5 +1,4 @@
 # RL environment for a single Stochastic APC
-# a single APC has a certain probability (p) of containing a harmful antigen
 # each timestep represents searching the APC more closely, which in turn costs time
 # the longer an APC is investigated, the more certainty about whether it contains harmful antigen you should have
 
@@ -14,10 +13,16 @@ from RL import utils
 ##### States, Actions & Rewards #####
 # States: Each state is an array of three values:
 # 1. the timestep `t`, natural numbers
-# 2. the perceived probability of the APC being positive `q` $\in [0, 1]$.
+# 2. the evidence function = recorded probability of the APC being positive `e` $\in [0, 1]$.
     # This starts at `0.5` and gets nudged in either direction toward 0 or 1, depending on the attribute `isPositive`.
 # 3. `1` if this state is a terminal state, `0` at the start of an episode and made positive by the agent
 # different certainty functions may influence the behaviour
+
+# Hidden State:
+# positiveTendency = True/False
+# each APC has a tendency of being harmful, which is either positive (True) or negative (False)
+# this is hiddne to an agent and only affects the direction of the evidence function e
+# this gets assigned randomly at environment-creation or -reset
 
 # Actions:
 # - `stay`: advance to the next timestep without making a decision
@@ -53,11 +58,11 @@ class StochasticAPC(Environment):
         # starting_state
         self.starting_state = np.array([0., 0.5, 0.])
         self.certainty_fun = certainty_fun
-        self.isPositive = None
+        self.isLikelyPositive = None
         self.reset()
 
     def reset(self):
-        self.isPositive = np.random.choice([True, False])
+        self.positiveTendency = np.random.choice([True, False])
 
     def state_is_terminal(self, state) -> bool:
         return state[2] == 1
@@ -66,7 +71,7 @@ class StochasticAPC(Environment):
     def print_state(state):
         print(f"State t={int(state[0])}, q={round(state[1], 4)}, stop={bool(state[2])}")
 
-    def get_certainty(self, t):
+    def get_evidence(self, t):
         # returns a value between 0.5 and 1
         # the passed function must rise monotonously and converge to 1
         # at t=0, it is 0
@@ -82,8 +87,8 @@ class StochasticAPC(Environment):
         # recompute q (perceived probability of APC being positive)
         # it is the certainty if the APC is positive, and thus converges from 0.5 to 1 at t increases,
         # or it is 1-certainty if the APC is negative, converging from 0.5 to 0 at t increases
-        certainty = self.get_certainty(new_state[0])
-        new_state[1] = certainty if self.isPositive else 1 - certainty
+        certainty = self.get_evidence(new_state[0])
+        new_state[1] = certainty if self.positiveTendency else 1 - certainty
         # if actions are negative or positive, terminate
         if action == "positive" or action == "negative":
             new_state[2] = 1
@@ -95,8 +100,15 @@ class StochasticAPC(Environment):
         # penalize him for the time it takes to investigate
         if action == "stay":
             return self.rewards["stay"]
+        # generate the status of this APC
+        # it is either True for positive/harmful or False for negative/benign
+        # the status is determined by sampling from the uniform distribution
+        # the probability is affected by the amount of evidence collected
+        # evidence is collected by advancing the e function
+        e_t = state[1]
+        isPositive = random.random() < e_t
         # return for the picked action the appropriate reward
-        if self.isPositive:
+        if isPositive:
             if action == "positive":
                 return self.rewards["positive"]["TP"]
             elif action == "negative":

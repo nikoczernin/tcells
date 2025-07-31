@@ -86,17 +86,24 @@ class APCThresholdPolicy(Policy):
         self.T = T # max time steps
         self.threshold = threshold
 
-    def get_decision_probabilities(self, state, epsilon=None):
+    def get_decision_probabilities(self, state, epsilon=None, hardline=True):
         """
+        Params:
+        state: expected format [timestep t:int > 0, evidence e: float in [0,1], terminate: bool]
+        epsilon: float in [0,1]
+        hardline: bool. If True, decision probabilities are always 0 or 1, otherwise proportional to evidence
+
         returns: if certainty > threshold,
         return random choice of "call" or "skip", else return "stay"
         """
         t = state[0]
-        q = state[1] # probability of APC being positive
-        if q > self.threshold or (t == self.T-1 and q > 0.5):
-            return np.array([0, q, 1-q])
-        elif q < (1-self.threshold) or (t == self.T-1 and q < 0.5):
-            return np.array([0, 1-q, q])
+        e = state[1] # probability of APC being positive
+        if e > self.threshold or  e < (1-self.threshold) or t == self.T-1:
+            if hardline:
+                p, q = round(e), 1-round(e)
+            else:
+                p, q = e, 1-e
+            return np.array([0, p, q])
         else:
             return np.array([1, 0, 0])
 

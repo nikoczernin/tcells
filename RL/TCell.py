@@ -51,6 +51,7 @@ class Agent():
             print()
         return R, t, transitions
 
+
     def make_test_runs(self, k=100, *args, **kwargs):
         # performs multiple test episodes and prints average results
         # input: k (int), args/kwargs - additional params for episodes; output: none
@@ -64,8 +65,8 @@ class Agent():
 
     def plot_transitions(self, transitions):
         X = np.arange(1, len(transitions)+1)
-        Y = [self.env.get_certainty(t) for t in X]
-        if self.env.isPositive:
+        Y = [self.env.get_evidence(t) for t in X]
+        if not self.env.positiveTendency:
             Y = [1-c for c in Y]
         plt.plot(X, Y)
         plt.xlabel("search time")
@@ -103,16 +104,23 @@ class TCell_Threshold(TCell):
 
 
 if __name__ == "__main__":
+    # play a single episode with a TCell
+    # use a TCell_Threshold
+    # this TCell variant uses a simple policy that makes a decision solely based on q
+    # if q is higher than the treshold or the final timestep is reached and q>0.5, it makes a positive classification
+    # if q is lower than 1-threshold or the final timestep is reached and q<0.5, it makes a negative classification
+    # otherwise it waits
+    # if you don't change the threshold/policy, every episode will converge at the same time
+    from RL.APC import StochasticAPC
+
+    # StochasticAPC will pick a random value for isPositive, but you can also set it manually
     env = StochasticAPC()
-    print(f"APC is _{'positive' if env.isPositive else 'negative'}_\n")
-    agent = TCell_Threshold(env, threshold=.96)
+    print(f"APC is _{'positive' if env.positiveTendency else 'negative'}_\n")
+    agent = TCell_Threshold(env, threshold=.995)
     print(agent.policy)
     # agent.policy.plot(agent)
     R, t, transitions = agent.episode(verbose=True)
     final_action = transitions[-1][1]
     final_reward = transitions[-1][2]
+    print(f"... and the env was {env.positiveTendency} ...")
     agent.plot_transitions(transitions)
-
-    # print(f"Final action: {final_action}. Final reward: {final_reward}")
-    # print("TCell decision evaluation:", env.eval_action_reward(final_action, final_reward))
-    # test_TCell_Threshold()
