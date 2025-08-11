@@ -6,7 +6,7 @@ import pandas as pd
 
 from RL.APC import StochasticAPC
 from RL.Environment import Environment
-from RL.Policy import LinearPolicy, Policy, APCThresholdPolicy
+from RL.Policy import LinearPolicy, Policy, APCThresholdPolicy, APCDoubleThresholdPolicy
 
 
 class Agent():
@@ -71,12 +71,13 @@ class Agent():
         plt.plot(X, Y)
         plt.xlabel("search time")
         plt.ylabel("q")
-        plt.title("Perceived probability of APC being positive (q) over time")
+        plt.title("Evidence of APC being positive over time: e(t)")
         plt.ylim(0, 1)
         plt.axhline(y=0.5, color='gray', linestyle='dotted')
         plt.grid(True)
         plt.legend()
         plt.show()
+
 
 class TCell(Agent):
     def __init__(self, env:Environment, T=100):
@@ -96,6 +97,12 @@ class TCell_Threshold(TCell):
     def __init__(self, env:Environment, T=100, threshold=.95):
         super().__init__(env, T)
         self.policy = APCThresholdPolicy(env.actions, threshold=threshold, T=T)
+
+
+class TCell_DoubleThreshold(TCell):
+    def __init__(self, env:Environment, T=100, threshold_1=.80, threshold_2=0.97):
+        super().__init__(env, T)
+        self.policy = APCDoubleThresholdPolicy(env.actions, threshold_1=threshold_1, threshold_2=threshold_2, T=T)
 
 
 
