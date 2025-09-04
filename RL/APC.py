@@ -84,11 +84,9 @@ class StochasticAPC(Environment):
         new_state = state.copy()
         # advance t (time)
         new_state[0] += 1
-        # recompute q (perceived probability of APC being positive)
-        # it is the certainty if the APC is positive, and thus converges from 0.5 to 1 at t increases,
-        # or it is 1-certainty if the APC is negative, converging from 0.5 to 0 at t increases
-        certainty = self.get_evidence(new_state[0])
-        new_state[1] = certainty if self.positiveTendency else 1 - certainty
+        # recompute evidence e (evidence of APC being positive)
+        evidence = self.get_evidence(new_state[0])
+        new_state[1] = evidence if self.positiveTendency else 1 - evidence
         # if actions are negative or positive, terminate
         if action == "positive" or action == "negative":
             new_state[2] = 1

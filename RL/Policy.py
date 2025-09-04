@@ -88,12 +88,11 @@ class APCThresholdPolicy(Policy):
         # to make a decision
         self.threshold = threshold
 
-    def get_decision_probabilities(self, state, epsilon=None, hardline=True):
+    def get_decision_probabilities(self, state, epsilon=None):
         """
         Params:
         state: expected format [timestep t:int > 0, evidence e: float in [0,1], terminate: bool]
         epsilon: float in [0,1]
-        hardline: bool. If True, decision probabilities are always 0 or 1, otherwise proportional to evidence
 
         returns: if evidence e > threshold; or if e converges to 0 then e < (1-threshold),
         return probabilities of picking "call" or "skip", else return "stay"
@@ -101,12 +100,12 @@ class APCThresholdPolicy(Policy):
         """
         t = state[0]
         e = state[1] # probability of APC being positive
+        # if the evidence crosses the treshold in either direction or the final timestep is reached ...
         if e > self.threshold or  e < (1-self.threshold) or t == self.T-1:
-            if hardline:
-                p, q = round(e), 1-round(e)
-            else:
-                p, q = e, 1-e
+            # return hardlined decision probabilities, i.e. 0 to not make a decision and 1 to make one
+            p, q = round(e), 1-round(e)
             return np.array([0, p, q])
+        # otherwise definitely take action "stay"
         else:
             return np.array([1, 0, 0])
 
@@ -161,12 +160,11 @@ class APCDoubleThresholdPolicy(APCThresholdPolicy):
         self.threshold_2 = threshold_2
 
 
-    def get_decision_probabilities(self, state, epsilon=None, hardline=None):
+    def get_decision_probabilities(self, state, epsilon=None):
         """
         Params:
         state: expected format [timestep t:int > 0, evidence e: float in [0,1], terminate: bool]
         epsilon: float in [0,1]
-        hardline: irrelevant
 
         returns: if evidence e > threshold; or if e converges to 0 then e < (1-threshold),
         return probabilities of picking "call" or "skip", else return "stay"
