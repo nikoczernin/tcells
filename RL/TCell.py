@@ -109,7 +109,6 @@ class TCell_DoubleThreshold(TCell):
 
 
 
-
 if __name__ == "__main__":
     # play a single episode with a TCell
     # use a TCell_Threshold
@@ -121,13 +120,18 @@ if __name__ == "__main__":
     from RL.APC import StochasticAPC
 
     # StochasticAPC will pick a random value for isPositive, but you can also set it manually
-    env = StochasticAPC()
-    print(f"APC is _{'positive' if env.positiveTendency else 'negative'}_\n")
-    agent = TCell_Threshold(env, threshold=.995)
-    print(agent.policy)
-    # agent.policy.plot(agent)
-    R, t, transitions = agent.episode(verbose=True)
+    env = StochasticAPC(learning_rate=.8)
+    agent = TCell_DoubleThreshold(env, T=300, threshold_1=.90, threshold_2=.95)
+    R, t, transitions = agent.episode(epsilon=0.1, verbose=False)
+    print()
+    print(f"APC is _{'positive' if env.positiveTendency else 'negative'}_")
+    print("Time taken:", t)
     final_action = transitions[-1][1]
     final_reward = transitions[-1][2]
-    print(f"... and the env was {env.positiveTendency} ...")
-    agent.plot_transitions(transitions)
+    result = env.eval_action_reward(final_action, final_reward)
+
+    print(result, "->", R)
+
+
+
+

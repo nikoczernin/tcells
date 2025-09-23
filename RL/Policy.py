@@ -171,27 +171,43 @@ class APCDoubleThresholdPolicy(APCThresholdPolicy):
         """
         t = state[0]
         e = state[1] # probability of APC being positive
-        # case 0: evidence is not enough for either treshold (only check threshold_1 because its smaller anyway)
-        if (1 - self.threshold_1) < e < self.threshold_1:
-            # pick decision: stay
-            return np.array([1, 0, 0])
-        # case 1: evidence is enough to pass threshold_1 but still lower than treshold_2
-        if (self.threshold_1 < e < self.threshold_2) or ((1 - self.threshold_2) < e < (1 - self.threshold_1)):
-            # use the evidence as probability of the decision to make here
-            # e is the probability of making a positive decision in this first step
-            positive_decision = random.random() < e
-            # if the decision was predictable, i.e. decision is positive and e > 0.5, or negative decision and e < 0.5
-            # keep exploring and thus continue to the second search phase
-            if (positive_decision and e > 0.5) or (not positive_decision and e < 0.5):
-                # pick decision: stay
-                return np.array([1, 0, 0])
-            # otherwise, make the unlikely and final decision
-            else:
-                p, q = round(e), 1-round(e)
-                return np.array([0, p, q])
-        # case 2: evidence is enough to pass threshold_2
-        # case 3: also, if too much time passed and you reach the maximum time taken to make a decision, terminate
-        elif e > self.threshold_2 or e < (1 - self.threshold_2) or t == self.T - 1:
+        # print("t", int(t))
+        # print("e", e)
+        # print("t1", self.threshold_1)
+        # print("t2", self.threshold_2)
+        # print(1 - self.threshold_1)
+        # print(1 - self.threshold_2)
+
+        # case 0: evidence is enough to pass threshold_2
+        # case 1: also, if too much time passed and you reach the maximum time taken to make a decision, terminate
+        if e > self.threshold_2 or e < (1 - self.threshold_2) or t >= self.T - 1:
+            # if t >= self.T-1:
+                # print("Overtime!")
+            # else:
+                # print("Threshold 2 exceeded!")
             p, q = round(e), 1 - round(e)
             return np.array([0, p, q])
+
+        # case 2: evidence is enough to pass threshold_1 but still lower than treshold_2 (or vv)
+        if (self.threshold_1 <= e <= self.threshold_2) or ((1 - self.threshold_2) <= e <= (1 - self.threshold_1)):
+            # print("Threshold 1 exceeded!")
+            # if there is positive evidence and it passed the first threshold
+            # the agent would (in a single phase strategy) make a positive descision
+            # in that case we keep searching to scrutinize more
+            if round(e):
+                # pick decision: stay
+                # print("\t but we continue searching!")
+                return np.array([1, 0, 0])
+            # otherwise, make the final and negative decision
+            else:
+                # print("\t locking in decision!")
+                p, q = round(e), 1-round(e)
+                return np.array([0, p, q])
+
+        # case 3: evidence is not enough for either treshold (only check threshold_1 because its smaller anyway)
+        if (1 - self.threshold_1) <= e <= self.threshold_1 or t < 2:
+            # print("Searching ...")
+            # pick decision: stay
+            return np.array([1, 0, 0])
+
         raise NotImplementedError("We are reaching a situation we shouldn't be in! How can this line of code be reached?")

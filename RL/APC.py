@@ -39,7 +39,9 @@ from RL import utils
 
 
 class StochasticAPC(Environment):
-    def __init__(self, certainty_fun=utils.rational_function):
+    def __init__(self, certainty_fun=utils.rational_function,
+                 p=0.01,
+                 learning_rate:float=1.0):
         # actions
         actions = ["stay", "positive", "negative"]
         super().__init__(actions)
@@ -57,12 +59,14 @@ class StochasticAPC(Environment):
         }
         # starting_state
         self.starting_state = np.array([0., 0.5, 0.])
+        self.p = p # probability of APC being positive (will be multiplied with evidence e)
+        self.learning_rate = learning_rate
         self.certainty_fun = certainty_fun
-        self.isLikelyPositive = None
+        self.positiveTendency = None
         self.reset()
 
     def reset(self):
-        self.positiveTendency = np.random.choice([True, False])
+        self.positiveTendency = random.random() < self.p
 
     def state_is_terminal(self, state) -> bool:
         return state[2] == 1
@@ -78,7 +82,7 @@ class StochasticAPC(Environment):
         # at t=1, it is 0.5
         # at t -> inf, it converges to 1
         if t == 0: return .5
-        return self.certainty_fun(t)
+        return self.certainty_fun(t, flatness=self.learning_rate)
 
     def apply_action(self, state, action):
         new_state = state.copy()

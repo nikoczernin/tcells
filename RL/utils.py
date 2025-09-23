@@ -35,8 +35,8 @@ def plot_blockwise_mean_rewards_line_graph(rewards: list, k=80, j=8,
     plt.show()
 
 
-def rational_function(x):
-    return x / (1 + x)
+def rational_function(x, flatness:float=1.0):
+    return x ** flatness / (1 + x ** flatness)
 
 def positive_mountain(x, flatness=60, flatness_start=3):
     return -x**2/flatness + x/flatness_start
