@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from RL.APC import StochasticAPC
-from RL.TCell import TCell
+from RL.ImmuneSystem import ImmuneSystem
 from utils import plot_blockwise_mean_rewards_line_graph, plot_line_graph
 
 
@@ -14,7 +14,7 @@ def SARSA(bot, alpha=.5, epsilon=.1, gamma=1.0, num_episodes=1000, expected=Fals
     else: print("Performing SARSA...")
     # init action-value function (tabular, finite)
     # should we consider all states beforehand?
-    Q = {s:{a:0 for a in bot.env.actions} for s in bot.env.state_generator()}
+    Q = {s:{a:0 for a in bot.env.ACTIONS} for s in bot.env.state_generator()}
     total_rewards = [] # keep a list of total rewards for each episode
     for k in range(num_episodes):
         episode_reward = 0
@@ -98,13 +98,13 @@ def Q_Learning(agent, alpha=.5, epsilon=.1, gamma=1.0, num_episodes=1000):
                 target = r
             else:
                 # get the greedy estimate of the next best action
-                q_1 = [agent.policy.q(s_t_1, index_a) for index_a, a in enumerate(agent.env.actions)]
+                q_1 = [agent.policy.q(s_t_1, index_a) for index_a, a in enumerate(agent.env.ACTIONS)]
                 # pick the action with the maximum action-value
                 # discount it and add the reward, thats your action value for the previous state-action
                 target = r + gamma * max(q_1)
             # compute the error = target - current estimate of the current state & action
             # print("Target reward:", target)
-            index_a_t = agent.env.actions.index(a_t)
+            index_a_t = agent.env.ACTIONS.index(a_t)
             error = target - agent.policy.q(s_t, index_a_t)
             # gradient step: ∂Q/∂W[a] = s
             agent.policy.W[index_a_t] += alpha * error * s_t
@@ -124,7 +124,7 @@ def Double_Q_Learning(bot, alpha=.5, epsilon=.1, gamma=1.0, num_episodes=1000):
     print("Performing Double-Q-Learning...")
     total_rewards = [] # memory of all total episode-rewards
     # init 2 action-value functions (tabular, finite)
-    Q1 = {s: {a: 0 for a in bot.env.actions} for s in bot.env.state_generator()}
+    Q1 = {s: {a: 0 for a in bot.env.ACTIONS} for s in bot.env.state_generator()}
     Q2 = Q1.copy()
     for k in range(num_episodes):
         # reset the env
@@ -173,7 +173,7 @@ def Double_Q_Learning(bot, alpha=.5, epsilon=.1, gamma=1.0, num_episodes=1000):
 def Speedy_Q_Learning(bot, alpha=None, gamma=1.0, epsilon=.1,  num_episodes=1000):
     print("Performing Speedy-Q-Learning...")
     # init action-value function (tabular, finite)
-    Q = {s: {a: 0 for a in bot.env.actions} for s in bot.env.state_generator()}
+    Q = {s: {a: 0 for a in bot.env.ACTIONS} for s in bot.env.state_generator()}
     total_rewards = []
     for k in range(num_episodes):
         # reset the env
@@ -226,7 +226,7 @@ def Speedy_Q_Learning(bot, alpha=None, gamma=1.0, epsilon=.1,  num_episodes=1000
 def test_tcell(algo=Q_Learning, print_q=False, alpha = .2, epsilon = .3, gamma = .9, num_episodes=10000):
     print(f"Testing {algo.__name__} on TCell...")
     env = StochasticAPC()
-    agent = TCell(env)
+    agent = ImmuneSystem(env)
     alpha = .3
     epsilon = .2
     gamma = .6

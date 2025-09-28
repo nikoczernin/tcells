@@ -1,5 +1,5 @@
 import random
-
+import copy
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -27,6 +27,7 @@ class Policy():
 
 class LinearPolicy(Policy):
     def __init__(self, actions, n_features):
+        raise NotImplementedError("Starting working here if you ever care!")
         super().__init__(actions)
         self.n_features = n_features
         # set initial linear coeffs
@@ -67,8 +68,8 @@ class LinearPolicy(Policy):
     def plot(self, agent):
         # Y = [self.env.get_certainty(t) for t in X]
         X = np.arange(agent.T)
-        for a in range(len(agent.env.actions)):
-            label = agent.env.actions[a]
+        for a in range(len(agent.env.ACTIONS)):
+            label = agent.env.ACTIONS[a]
             # plt.plot(X, Y)
             Y = [agent.policy.q(np.array([t, agent.env.get_certainty(t), 0]), a) for t in X]
             plt.plot(X, Y, label=label)
@@ -80,13 +81,12 @@ class LinearPolicy(Policy):
         plt.show()
 
 
-class APCThresholdPolicy(Policy):
-    def __init__(self, actions, threshold, T):
+class SingleSearchPhasePolicy(Policy):
+    # stop the exploration of the APC at hand at a fixed point tau in T
+    # when t == tau, stop and make a classification
+    def __init__(self, actions, tau):
         super().__init__(actions)
-        self.T = T # max time steps
-        # this threshold is the minimum amount of evidence e(t) required
-        # to make a decision
-        self.threshold = threshold
+        self.tau = tau # stopping time
 
     def get_decision_probabilities(self, state, epsilon=None):
         """
@@ -94,37 +94,55 @@ class APCThresholdPolicy(Policy):
         state: expected format [timestep t:int > 0, evidence e: float in [0,1], terminate: bool]
         epsilon: float in [0,1]
 
-        returns: if evidence e > threshold; or if e converges to 0 then e < (1-threshold),
-        return probabilities of picking "call" or "skip", else return "stay"
-        probabilities are hardlined to 0 and 1 by default but can be left at float level if desired
+        returns: if timestep t >= tau, tell the TCell in the APC to make a decision
+        return probabilities of picking "stay" or "classify"
+        probabilities are hard-lined to 0 and 1
         """
         t = state[0]
         e = state[1] # probability of APC being positive
         # if the evidence crosses the treshold in either direction or the final timestep is reached ...
-        if e > self.threshold or  e < (1-self.threshold) or t == self.T-1:
-            # return hardlined decision probabilities, i.e. 0 to not make a decision and 1 to make one
-            p, q = round(e), 1-round(e)
-            return np.array([0, p, q])
+        if t >= self.tau:
+            # print("Tell the TCell to classify!")
+            return np.array([0, 1])
         # otherwise definitely take action "stay"
         else:
-            return np.array([1, 0, 0])
+            # print("Tell the TCell to explore a little longer!")
+            return np.array([1, 0])
 
     def __str__(self):
-        return f"APCThresholdPolicy threshold={self.threshold}"
+        return f"Stopping point=({self.tau})"
 
-    def plot(self, tcell):
-        X = np.arange(tcell.T)
-        Y = [tcell.env.get_certainty(t) for t in X]
-        plt.plot(X, Y)
-        plt.xlabel("search time")
-        plt.ylabel("certainty")
-        plt.title("Decision certainty over search time")
+    def plot(self, immuneSystem, title="Certainty over search time"):
+        env = immuneSystem.env
+        T = np.arange(self.tau * 1.2)
+        # visualize the certainty curve for many values of t
+        env_pos = copy.copy(env)
+        env_pos.positive = True
+        # use copies of the env to not disturb any other workflow
+        C1 = [env_pos.get_certainty(t) for t in T]
+        # visualize the curve also for a version of APC with a inverted harmfulness
+        env_neg = copy.copy(env)
+        env_neg.positive = False
+        # use copies of the env to not disturb any other workflow
+        C2 = [env_neg.get_certainty(t) for t in T]
+        # create the plot
+        plt.figure(figsize=(7, 4))  # wide and flat
+        plt.plot(T, C1, color="blue", label="positive APC")
+        plt.plot(T, C2, color="red", label="negative APC")
+
+        plt.axhline(y=env_pos.get_certainty(1), color='lightgray', linestyle='--') # certainty starting point
+        plt.axvline(x=self.tau, color='green', linestyle='--') # stopping point tau
+
+        plt.xlabel("Search time t")
+        plt.ylabel("Certainty e(t)")
+        plt.title(title)
+        plt.ylim([0, 1])
         plt.grid(True)
         plt.legend()
         plt.show()
 
 
-class APCDoubleThresholdPolicy(APCThresholdPolicy):
+class DoubleSearchPhasePolicy(SingleSearchPhasePolicy):
     """
     Double threshold is an implementation of a 2-phase search strategy
     there are two thresholds, the first is closer to 0.5 than the second
@@ -211,3 +229,15 @@ class APCDoubleThresholdPolicy(APCThresholdPolicy):
             return np.array([1, 0, 0])
 
         raise NotImplementedError("We are reaching a situation we shouldn't be in! How can this line of code be reached?")
+
+
+
+
+
+
+
+
+
+
+
+

@@ -12,10 +12,10 @@ import numpy as np
 class Bot():
     def __init__(self, env, T=100, initialize_policy=True):
         self.T = T # max number of time steps the agent is allowed to take
-        # the environment contains states and actions
+        # the environment contains states and ACTIONS
         self.env = env
-        # in the scriptum the policy is often referred to as a vector of length S, containing actions
-        # I opted to use a dictionary that maps from states to actions to probabilities of using that action in that state
+        # in the scriptum the policy is often referred to as a vector of length S, containing ACTIONS
+        # I opted to use a dictionary that maps from states to ACTIONS to probabilities of using that action in that state
         # self.policy: pi(a|s) -> [0, 1]
         # I initialize them as equiprobable, which leads to random action-picking
 
@@ -27,31 +27,31 @@ class Bot():
             self.init_policy()
 
     def init_policy(self, hardline=False):
-        # initializes the policy with equal probabilities for possible actions
+        # initializes the policy with equal probabilities for possible ACTIONS
         # input: hardline (bool); output: none
         for s in self.env.state_generator():
-            possible_actions = [a for a in self.env.actions if (self.env.is_this_action_possible(s, a))]
+            possible_actions = [a for a in self.env.ACTIONS if (self.env.is_this_action_possible(s, a))]
             self.policy[s] = {}
-            for a in self.env.actions:
+            for a in self.env.ACTIONS:
                 self.policy[s].update({a: 1 / len(possible_actions) if a in possible_actions else 0})
         if hardline: self.hardline_policy()
 
-    # policy is typically a probability of all possible actions in a given state
+    # policy is typically a probability of all possible ACTIONS in a given state
     # when an action is performed, the policy returns each action with a certain probability
-    # if you want to max out the probability of the most probable actions to get only probs of either 0 or 1
+    # if you want to max out the probability of the most probable ACTIONS to get only probs of either 0 or 1
     # then this function is for you
     def hardline_policy(self):
         # makes the policy deterministic (probabilities either 0 or 1)
         # input/output: none
         for s in self.policy.keys():
-            # get a random pick of the most probable actions
+            # get a random pick of the most probable ACTIONS
             a_max = self.pick_action(s)
             # now set all probabilities to zero, except for the max one
             for a in self.policy[s].keys():
                 self.policy[s][a] = 1 if a == a_max else 0
 
     def policy_set_action(self, s, a_new, policy = None):
-        # with this function you can update a policy to set all actions for a given state to a probability of 0
+        # with this function you can update a policy to set all ACTIONS for a given state to a probability of 0
         # except for the action a_new, which will get a probability of 1
         if policy is None: policy = self.policy
         for a in policy[s].keys():
@@ -69,7 +69,7 @@ class Bot():
             return None
         # TODO: if the state is unknown to the policy, compute a new ruleset
         if s_t not in policy.keys():
-            possible_actions = [a for a in self.env.actions if self.env.is_this_action_possible(s_t, a)]
+            possible_actions = [a for a in self.env.ACTIONS if self.env.is_this_action_possible(s_t, a)]
             policy[s_t] = {a:1/len(possible_actions) for a in possible_actions}
 
         # generate a random uniform number
@@ -82,7 +82,7 @@ class Bot():
         else:
             # get the action with the highest probability given the current state from the policy
             max_prob = max(policy[s_t].values())
-            # get all actions for this state that have the max probability
+            # get all ACTIONS for this state that have the max probability
             best_keys = [k for k, v in policy[s_t].items() if v == max_prob]
             # pick a random action from the most likely ones
             chosen_key = random.choice(best_keys)
