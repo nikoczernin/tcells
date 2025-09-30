@@ -78,7 +78,9 @@ class StochasticAPC(Environment):
         }
         # probability of APC being positive
         # sets the starting point of the certainty function
-        self.bias = bias / (1 - bias + (1e-12 if bias == 1 else 0))
+        self.bias = None
+        self.set_bias(bias)
+
         self.learning_rate = learning_rate * 0.5
         self.certainty_fun = certainty_fun
         # set the status
@@ -90,6 +92,9 @@ class StochasticAPC(Environment):
 
     def reset(self):
         self.positive = random.random() < self.p
+
+    def set_bias(self, bias):
+        self.bias = bias / (1 - bias + (1e-12 if bias == 1 else 0))
 
 
     def state_is_terminal(self, state) -> bool:

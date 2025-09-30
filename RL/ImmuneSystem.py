@@ -100,11 +100,18 @@ class ImmuneSystem_SinglePhase(ImmuneSystem):
         self.tau = tau
         self.policy = SingleSearchPhasePolicy(env.ACTIONS, tau=tau)
 
+    def str(self):
+        return f"ImmuneSystem_SinglePhase [tau={self.tau}]"
+
 
 class ImmuneSystem_DoublePhase(ImmuneSystem):
-    def __init__(self, env:StochasticAPC, T=100, tau_1=.80, tau_2=0.97, verbose=False):
+    def __init__(self, env:StochasticAPC, tau_1, tau_2, verbose=False):
         super().__init__(env, tau_2*10, verbose=verbose)
+        self.tau_1, self.tau_2 = tau_1, tau_2
         self.policy = DoubleSearchPhasePolicy(env.ACTIONS, tau_1=tau_1, tau_2=tau_2)
+
+    def str(self):
+        return f"ImmuneSystem_SinglePhase [tau={self.tau_1}, {self.tau_2}]"
 
 
 
