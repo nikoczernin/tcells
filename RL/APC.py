@@ -1,11 +1,12 @@
 # RL environment for a single Stochastic APC
 # each timestep represents searching the APC more closely, which in turn costs time
 # the longer an APC is investigated, the more certainty about whether it contains harmful antigen you should have
-
+import copy
 import random
 from pprint import pprint
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from RL.Environment import Environment
 from RL import utils
@@ -13,8 +14,8 @@ from RL import utils
 ##### States, Actions & Rewards #####
 # States: Each state is an array of three values:
 # 1. the timestep `t`, natural numbers
-# 2. the evidence function = recorded probability of the APC being positive `e` $\in [0, 1]$.
-    # This starts at `0.5` and gets nudged in either direction toward 0 or 1, depending on the attribute `isPositive`.
+# 2. the certainty function = certainty about the APC being positive `c` $\in [0, 1]$.
+    # This starts at `bias` and gets nudged in either direction toward 0 or 1, depending on the attribute `isPositive`.
 # 3. `1` if this state is a terminal state, `0` at the start of an episode and made positive by the agent
 
 # Hidden State:
@@ -25,9 +26,8 @@ from RL import utils
 
 # Actions:
 # - `stay`: advance to the next timestep without making a decision
-# - `classify`: make a classification. it will be `positive` with probability c(t) or `negative` with prob 1-c(t)
-    # - `positive`: classify the APC to be `positive`
-    # - `negative`: classify the APC to be `negative`
+# - `positive`: classify the APC to be `positive`
+# - `negative`: classify the APC to be `negative`
 
 
 # Rewards:
@@ -37,10 +37,20 @@ from RL import utils
 # negative & pos (FN): -100
 # negative & neg (TN): 100
 
+def b(x, k=1):
+    y = np.empty_like(x)
+    mask = x <= 0.5
+    y[mask] = (2*x[mask])**k / 2
+    y[~mask] = 1 - (2*(1-x[~mask]))**k / 2
+    return y
+
+def get_biases(n, k):
+    return b(np.linspace(0, 1, n + 2), k=k)[1: -1]
+
 
 class StochasticAPC(Environment):
     # ACTIONS
-    ACTIONS = ["stay", "classify"]
+    ACTIONS = ["stay", "positive", "negative"]
     # Params:
     # p: probability of the APC being positive/harmful
     # bias: starting point and general nudge upwards or downwards of the
@@ -66,8 +76,6 @@ class StochasticAPC(Environment):
                 "FN": -100,
             }
         }
-        # starting_state
-        self.starting_state = np.array([0., 0.5, 0.])
         # probability of APC being positive
         # sets the starting point of the certainty function
         self.bias = bias / (1 - bias + (1e-12 if bias == 1 else 0))
@@ -77,9 +85,12 @@ class StochasticAPC(Environment):
         self.p = p
         self.positive = None
         self.reset()
+        # starting_state
+        self.starting_state = np.array([0., self.get_certainty(0), 0.])
 
     def reset(self):
         self.positive = random.random() < self.p
+
 
     def state_is_terminal(self, state) -> bool:
         return state[2] == 1
@@ -107,12 +118,12 @@ class StochasticAPC(Environment):
         new_state = state.copy()
         # advance t (time)
         new_state[0] += 1
-        # recompute certainty e (certainty of APC being positive)
+        # recompute certainty c (certainty of APC being positive)
         certainty = self.get_certainty(new_state[0])
         # print("Certainty=", certainty)
         new_state[1] = certainty
         # if ACTIONS are negative or positive, terminate
-        if action == "classify":
+        if action == "positive" or action == "negative":
             new_state[2] = 1
         return new_state
 
@@ -121,27 +132,22 @@ class StochasticAPC(Environment):
         # if the agent wants to inspect the APC for longer
         # his action was "stay"
         # penalize him for the time it takes to investigate
+        t = state[0]
+        c = state[1]
+
         if action == "stay":
             return self.rewards["stay"], "stayed"
-        elif action == "classify":
+        elif action == "positive":
             # this APC is either True for positive/harmful or False for negative/benign
-            # the ImmuneSystem will make a positive classification with probability c(t)
-            # or a negative classification with probability 1-c(t)
-            # the decision is determined by sampling from the uniform distribution
-            certainty = state[1]
-            positive_classification = random.random() < certainty
-            # print("Classifying", "positive" if positive_classification else "negative")
-            # return for the picked action the appropriate reward
             if self.positive: # if the APC is positive
-                if positive_classification:
-                    return self.rewards["positive"]["TP"], "TP"
-                else:
-                    return self.rewards["negative"]["FN"], "FN"
+                return self.rewards["positive"]["TP"], "TP"
             else:
-                if positive_classification:
-                    return self.rewards["positive"]["FP"], "FP"
-                else:
-                    return self.rewards["negative"]["TN"], "TN"
+                return self.rewards["positive"]["FP"], "FP"
+        elif action == "negative":
+            if self.positive: # if the APC is positive
+                return self.rewards["negative"]["FN"], "FN"
+            else:
+                return self.rewards["negative"]["TN"], "TN"
         raise NotImplementedError("How did we get here?")
 
     @staticmethod
@@ -151,3 +157,73 @@ class StochasticAPC(Environment):
         elif action == "negative" and reward > 0: return "TN"
         elif action == "negative" and reward < 0: return "FN"
         else: return "unknown"
+
+    def plotCertainty(self, tau=None, taus=None, title="Certainty over search time"):
+        # taus must be a list of stopping points to plot
+        if not isinstance(taus, list) and taus is not None: taus = [taus]
+        elif taus is None and tau is not None and not isinstance(tau, list): taus = [tau]
+        elif taus is None and tau is not None and isinstance(tau, list): taus = tau
+        # ge the max time point to visualize
+        max_t = 50 if taus is None else max(taus) * 1.2
+        T = np.arange(max_t * 1.2)
+        # visualize the certainty curve for many values of t
+        env_pos = copy.copy(self)
+        env_pos.positive = True
+        # use copies of the env to not disturb any other workflow
+        C1 = [env_pos.get_certainty(t) for t in T]
+        # visualize the curve also for a version of APC with a inverted harmfulness
+        env_neg = env_pos
+        env_neg.positive = False
+        # use copies of the env to not disturb any other workflow
+        C2 = [env_neg.get_certainty(t) for t in T]
+        # create the plot
+        plt.figure(figsize=(7, 4))  # wide and flat
+        plt.plot(T, C1, color="blue", label="positive APC")
+        plt.plot(T, C2, color="red", label="negative APC")
+
+        plt.axhline(y=env_pos.get_certainty(1), color='lightgray', linestyle='--') # certainty starting point
+        if taus is not None:
+            for tau in taus:
+                plt.axvline(x=tau, color='green', linestyle='--') # stopping point tau
+
+        plt.xlabel("Search time t")
+        plt.ylabel("Certainty e(t)")
+        plt.title(title)
+        plt.ylim([0, 1])
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+
+    @staticmethod
+    def plotCertainties(biases:list, learning_rate=1, taus:list=None, title="Certainty over search time"):
+        if not isinstance(taus, list) and taus is not None: taus = [taus]
+        # create the plot
+        plt.figure(figsize=(7, 4))  # wide and flat
+        max_t = 50 if taus is None else max(taus) * 1.2
+        T = np.arange(max_t * 1.2)
+        for i, bias in enumerate(biases):
+            # visualize the certainty curve for many values of t
+            env_pos = StochasticAPC(bias=bias, learning_rate=learning_rate)
+            env_pos.positive = True
+            # use copies of the env to not disturb any other workflow
+            C1 = [env_pos.get_certainty(t) for t in T]
+            # visualize the curve also for a version of APC with a inverted harmfulness
+            env_neg = env_pos
+            env_neg.positive = False
+            # use copies of the env to not disturb any other workflow
+            C2 = [env_neg.get_certainty(t) for t in T]
+            plt.plot(T, C1, color=plt.cm.tab10.colors[i], label=f"bias={bias}")
+            plt.plot(T, C2, color=plt.cm.tab10.colors[i])
+
+        plt.axhline(y=0.5, color='lightgray', linestyle='--') # certainty starting point
+        if taus is not None:
+            for tau in taus:
+                plt.axvline(x=tau, color='green', linestyle='--') # stopping point tau
+
+        plt.xlabel("Search time t")
+        plt.ylabel("Certainty e(t)")
+        plt.title(title)
+        plt.ylim([0, 1])
+        plt.grid(True)
+        plt.legend()
+        plt.show()

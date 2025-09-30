@@ -10,10 +10,11 @@ from RL.Policy import LinearPolicy, Policy, SingleSearchPhasePolicy, DoubleSearc
 
 
 class Agent():
-    def __init__(self, env, T):
+    def __init__(self, env, T, verbose=False):
         self.T = T # max number of time steps the agent is allowed to take
         self.env = env
         self.policy = None
+        self.verbose = verbose
 
     def pick_action(self, state, epsilon):
         return self.policy.pick_action(state, epsilon)
@@ -80,9 +81,9 @@ class Agent():
 
 
 class ImmuneSystem(Agent):
-    def __init__(self, env:StochasticAPC, T):
+    def __init__(self, env:StochasticAPC, T, verbose=False):
         # print("Initializing T-cell...")
-        super().__init__(env, T)
+        super().__init__(env, T, verbose=verbose)
         # set some policy
         pass
 
@@ -94,37 +95,29 @@ class ImmuneSystem(Agent):
 
 
 class ImmuneSystem_SinglePhase(ImmuneSystem):
-    def __init__(self, env:StochasticAPC, tau):
-        super().__init__(env, tau*10)
+    def __init__(self, env:StochasticAPC, tau, verbose=False):
+        super().__init__(env, tau*10, verbose=verbose) # set a super high max time to be safe
         self.tau = tau
         self.policy = SingleSearchPhasePolicy(env.ACTIONS, tau=tau)
 
 
 class ImmuneSystem_DoublePhase(ImmuneSystem):
-    def __init__(self, env:StochasticAPC, T=100, threshold_1=.80, threshold_2=0.97):
-        super().__init__(env, T)
-        self.policy = DoubleSearchPhasePolicy(env.ACTIONS, T=T, threshold_1=threshold_1, threshold_2=threshold_2)
+    def __init__(self, env:StochasticAPC, T=100, tau_1=.80, tau_2=0.97, verbose=False):
+        super().__init__(env, tau_2*10, verbose=verbose)
+        self.policy = DoubleSearchPhasePolicy(env.ACTIONS, tau_1=tau_1, tau_2=tau_2)
 
 
 
 
-
-
-if __name__ == "__main__":
+def test_single():
     # play a single episode with a ImmuneSystem
-    # use a ImmuneSystem_SinglePhase
-    # this ImmuneSystem variant uses a simple policy that makes a decision solely based on q
-    # if q is higher than the treshold or the final timestep is reached and q>0.5, it makes a positive classification
-    # if q is lower than 1-threshold or the final timestep is reached and q<0.5, it makes a negative classification
-    # otherwise it waits
-    # if you don't change the threshold/policy, every episode will converge at the same time
     from RL.APC import StochasticAPC
-
     # StochasticAPC will pick a random value for isPositive, but you can also set it manually
-    env = StochasticAPC(learning_rate=.8, p=0.5, bias=.8)
-    agent = ImmuneSystem_SinglePhase(env, tau=30)
-    agent.policy.plot(env)
-    R, t, transitions = agent.episode(verbose=False)
+    env = StochasticAPC(learning_rate=.8, p=0.5, bias=.9995)
+    tau = 10
+    agent = ImmuneSystem_SinglePhase(env, tau=tau, verbose=True)
+    env.plotCertainty(tau=tau)
+    R, t, transitions = agent.episode()
     print()
     print(f"APC is _{'positive' if env.positive else 'negative'}_")
     print("Time taken:", t)
@@ -133,6 +126,29 @@ if __name__ == "__main__":
     eval = transitions[-1][4]
     print(eval, "->", R)
 
+
+def test_double():
+    # play a single episode with a ImmuneSystem
+    from RL.APC import StochasticAPC
+    # StochasticAPC will pick a random value for isPositive, but you can also set it manually
+    env = StochasticAPC(learning_rate=2, p=0.1, bias=.9)
+    tau_1, tau_2 = 3, 6
+    agent = ImmuneSystem_DoublePhase(env, tau_1=tau_1, tau_2= tau_2, verbose=True)
+    env.plotCertainty(taus=[tau_1, tau_2])
+    R, t, transitions = agent.episode()
+    print()
+    print(f"APC is _{'positive' if env.positive else 'negative'}_")
+    print("Time taken:", t)
+    final_action = transitions[-1][1]
+    final_reward = transitions[-1][2]
+    eval = transitions[-1][4]
+    print(eval, "->", R)
+
+
+
+if __name__ == "__main__":
+    # test_single()
+    test_double()
 
 
 
