@@ -101,7 +101,7 @@ class ImmuneSystem_SinglePhase(ImmuneSystem):
         self.policy = SingleSearchPhasePolicy(env.ACTIONS, tau=tau)
 
     def str(self):
-        return f"ImmuneSystem_SinglePhase [tau={self.tau}]"
+        return f"[tau={self.tau}]"
 
 
 class ImmuneSystem_DoublePhase(ImmuneSystem):
@@ -111,7 +111,7 @@ class ImmuneSystem_DoublePhase(ImmuneSystem):
         self.policy = DoubleSearchPhasePolicy(env.ACTIONS, tau_1=tau_1, tau_2=tau_2)
 
     def str(self):
-        return f"ImmuneSystem_SinglePhase [tau={self.tau_1}, {self.tau_2}]"
+        return f"[tau={self.tau_1}, {self.tau_2}]"
 
 
 
@@ -138,8 +138,8 @@ def test_double():
     # play a single episode with a ImmuneSystem
     from RL.APC import StochasticAPC
     # StochasticAPC will pick a random value for isPositive, but you can also set it manually
-    env = StochasticAPC(learning_rate=2, p=0.1, bias=.9)
-    tau_1, tau_2 = 3, 6
+    env = StochasticAPC(learning_rate=2, p=0.1, bias=.05)
+    tau_1, tau_2 = 30, 50
     agent = ImmuneSystem_DoublePhase(env, tau_1=tau_1, tau_2= tau_2, verbose=True)
     env.plotCertainty(taus=[tau_1, tau_2])
     R, t, transitions = agent.episode()
