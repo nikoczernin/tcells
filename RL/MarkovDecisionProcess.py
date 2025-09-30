@@ -68,7 +68,7 @@ class MarkovDecisionProcess():
                 oldAction = bot.pick_action(s)
                 # set a new action for the policy
                 # pick the action that maximizes the action-value function
-                # do that by picking the max value of the policy-keys (i.e. the actions) using the
+                # do that by picking the max value of the policy-keys (i.e. the ACTIONS) using the
                 # action-value-function as a "key" (i.e. the thing that the max function uses to evaluate the values)
                 best_action = max(bot.policy[s].keys(), key=lambda a: bot.action_value_fun(s, a, 0, gamma))
                 # update the policy
@@ -103,7 +103,7 @@ class MarkovDecisionProcess():
             if bot.env.state_is_terminal(s): continue
             # set a new best action for the policy
             # pick the action that maximizes the action-value function
-            # do that by picking the max value of the policy-keys (i.e. the actions) using the
+            # do that by picking the max value of the policy-keys (i.e. the ACTIONS) using the
             # action-value-function as a "key" (i.e. the thing that the max function uses to evaluate the values)
             best_action = max(bot.policy[s].keys(), key=lambda a: bot.action_value_fun_star(s, a, gamma, v))
             bot.policy_set_action(s, best_action)
@@ -123,7 +123,7 @@ def test_grid_world():
     # perform iterative policy evaluation
     v = MarkovDecisionProcess.iterative_policy_evaluation(bot, accuracy_thresh, gamma)
     print()
-    print("Initial policy (all actions are equally probable")
+    print("Initial policy (all ACTIONS are equally probable")
     # pprint(bot.policy)
     bot.draw_policy()
     print("Value estimations:")

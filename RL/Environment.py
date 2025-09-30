@@ -9,8 +9,8 @@ import random
 class Environment():
     def __init__(self, actions):
         # Initialize environment with action set
-        self.actions = actions
-        self.rewards = {a: 0 for a in self.actions}
+        self.ACTIONS = actions
+        self.rewards = {a: 0 for a in self.ACTIONS}
         self.starting_state = None
         self.terminal_states = []
 
@@ -58,7 +58,7 @@ class Environment():
         # Checks if action is in the environment's action list
         # input: state - any, action - any
         # output: bool
-        return True if action in self.actions else False
+        return True if action in self.ACTIONS else False
 
     def apply_action(self, state, action):
         # Computes next state from applying action in current state

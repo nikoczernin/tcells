@@ -27,8 +27,8 @@ def MC_policy_control(bot: Bot, epsilon=.1, gamma=1, visit="first", off_policy=F
     # dict: maps from state to action to a list of all returns received
     returns = {}
     for s in bot.env.state_generator():
-        Q[s] = {a: 0.0 for a in bot.env.actions}
-        returns[s] = {a: [] for a in bot.env.actions}
+        Q[s] = {a: 0.0 for a in bot.env.ACTIONS}
+        returns[s] = {a: [] for a in bot.env.ACTIONS}
 
     for k in range(num_episodes):
         if k % (num_episodes//10) == 0:
@@ -58,13 +58,13 @@ def MC_policy_control(bot: Bot, epsilon=.1, gamma=1, visit="first", off_policy=F
                     a for a, v in Q[s_t].items()
                     if v == max(Q[s_t].values())
                 ])
-                # update the Bot policy (not necessarily the behaviour_policy) for all actions in the current state
-                for a in bot.env.actions:
+                # update the Bot policy (not necessarily the behaviour_policy) for all ACTIONS in the current state
+                for a in bot.env.ACTIONS:
                     # TODO: the following check is also in the Bot.policy class
                     # maybe we should generalize this ...
                     # if there is no policy rule for this state yet, create it
                     if s_t not in bot.policy.keys():
-                        possible_actions = [a for a in bot.env.actions if bot.env.is_this_action_possible(s_t, a)]
+                        possible_actions = [a for a in bot.env.ACTIONS if bot.env.is_this_action_possible(s_t, a)]
                         bot.policy[s_t] = {a:1/len(possible_actions) for a in possible_actions}
                     bot.policy[s_t][a] = (1 - epsilon + epsilon/len(Q[s_t])) if a_optimal == a else epsilon/len(Q[s_t])
     print()
