@@ -44,8 +44,8 @@ def b(x, k=1):
     y[~mask] = 1 - (2*(1-x[~mask]))**k / 2
     return y
 
-def get_biases(n, k):
-    return b(np.linspace(0, 1, n + 2), k=k)[1: -1]
+def get_biases(n):
+    return np.linspace(0, 1, n + 2)[1: -1]
 
 
 class StochasticAPC(Environment):
@@ -62,7 +62,8 @@ class StochasticAPC(Environment):
     def __init__(self, certainty_fun=utils.rational_function,
                  p=0.05,
                  bias=0.5, # 0 <= bias <= 1
-                 learning_rate:float=1.0):
+                 learning_rate:float=1.0,
+                 positive=None):
         super().__init__(self.ACTIONS)
         # rewards
         self.rewards = {
@@ -85,8 +86,9 @@ class StochasticAPC(Environment):
         self.certainty_fun = certainty_fun
         # set the status
         self.p = p
-        self.positive = None
-        self.reset()
+        self.positive = positive
+        if positive is None:
+            self.reset()
         # starting_state
         self.starting_state = np.array([0., self.get_certainty(0), 0.])
 
@@ -113,10 +115,12 @@ class StochasticAPC(Environment):
         # bias > 0.5: increased certainty, bias < 0.5: decreased certainty
         if self.positive:
             # adjust t by the bias
-            certainty = self.certainty_fun(t * self.bias, flatness=self.learning_rate)
+            # certainty = self.certainty_fun(t * self.bias, flatness=self.learning_rate)
+            certainty =  t ** self.learning_rate * self.bias / (1 +  t ** self.learning_rate * self.bias)
         else:
             # adjust t by the inverted bias
-            certainty = 1 -self.certainty_fun(t / self.bias, flatness=self.learning_rate)
+            certainty =  1 - t ** self.learning_rate / self.bias / (1 +  t ** self.learning_rate / self.bias)
+            # certainty = 1 -self.certainty_fun(t / self.bias, flatness=self.learning_rate)
         return certainty
 
     def apply_action(self, state, action):

@@ -3,7 +3,7 @@ from tkinter import ttk
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-
+from RL.utils import rational_function
 
 # =========================
 # Placeholder function c(t, lr, p, bias)
@@ -11,22 +11,13 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 # t is a numpy array.
 # =========================
 def c(t, lr, p, bias):
-    """
-    Example placeholder:
-    A smooth logistic curve whose mid-point is near p (in normalized time),
-    scaled by lr, and starting around 'bias'. t is normalized to [0,1] so
-    the behavior is stable regardless of maxT.
-    """
-    def logit(x, eps=1e-9):
-        x = np.clip(x, eps, 1 - eps)
-        return np.log(x / (1 - x))
-
+    bias = bias / (1 - bias + (1e-12 if bias == 1 else 0))
     t = np.asarray(t, dtype=float)
-    t_norm = t / max(np.max(t), 1.0)  # normalize t to [0,1] (avoid div by zero)
-    z0 = logit(bias)                  # anchor around 'bias'
-    z = z0 + (t_norm - p) * (lr * 6)  # 6 is an arbitrary scale for demo
-    y = 1.0 / (1.0 + np.exp(-z))
-    return np.clip(y, 0.0, 1.0)
+    c_pos = rational_function(t * bias, flatness=lr)
+    c_neg = 1 - rational_function(t / bias, flatness=lr)
+    # get the expected value
+    certainty = p * c_pos + (1 - p) * c_neg
+    return certainty
 
 
 class CurveExplorerApp(tk.Tk):
