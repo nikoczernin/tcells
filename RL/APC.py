@@ -37,12 +37,6 @@ from RL import utils
 # negative & pos (FN): -100
 # negative & neg (TN): 100
 
-def b(x, k=1):
-    y = np.empty_like(x)
-    mask = x <= 0.5
-    y[mask] = (2*x[mask])**k / 2
-    y[~mask] = 1 - (2*(1-x[~mask]))**k / 2
-    return y
 
 def get_biases(n):
     return np.linspace(0, 1, n + 2)[1: -1]
@@ -61,7 +55,9 @@ class StochasticAPC(Environment):
     # will nudge the function downwards and lead to fewer true positives and false positives
     def __init__(self, certainty_fun=utils.rational_function,
                  p=0.05,
-                 bias=0.5, # 0 <= bias <= 1
+                 bias=None, # 0 <= bias <= 1
+                 bias_pos=None,
+                 bias_neg=None,
                  learning_rate:float=1.0,
                  positive=None):
         super().__init__(self.ACTIONS)
@@ -79,8 +75,13 @@ class StochasticAPC(Environment):
         }
         # probability of APC being positive
         # sets the starting point of the certainty function
-        self.bias = None
-        self.set_bias(bias)
+        self.bias_pos, self.bias_neg = None, None
+        if bias is None and bias_pos is None:
+            raise ValueError("Please specify bias or bias_pos")
+        if bias is None:
+            self.set_bias(bias_pos, bias_neg)
+        else:
+            self.set_bias(bias, bias)
 
         self.learning_rate = learning_rate * 0.5
         self.certainty_fun = certainty_fun
@@ -95,9 +96,10 @@ class StochasticAPC(Environment):
     def reset(self):
         self.positive = random.random() < self.p
 
-    def set_bias(self, bias):
-        self.bias = bias / (1 - bias + (1e-12 if bias == 1 else 0))
-
+    def set_bias(self, bias, bias_2=None):
+        if bias_2 is None: bias_2 = bias
+        self.bias_pos = bias / (1 - bias + (1e-12 if bias == 1 else 0))
+        self.bias_neg = bias_2 / (1 - bias_2 + (1e-12 if bias_2 == 1 else 0))
 
     def state_is_terminal(self, state) -> bool:
         return state[2] == 1
@@ -116,10 +118,10 @@ class StochasticAPC(Environment):
         if self.positive:
             # adjust t by the bias
             # certainty = self.certainty_fun(t * self.bias, flatness=self.learning_rate)
-            certainty =  t ** self.learning_rate * self.bias / (1 +  t ** self.learning_rate * self.bias)
+            certainty =  t ** self.learning_rate * self.bias_pos / (1 +  t ** self.learning_rate * self.bias_pos)
         else:
             # adjust t by the inverted bias
-            certainty =  1 - t ** self.learning_rate / self.bias / (1 +  t ** self.learning_rate / self.bias)
+            certainty =  1 - t ** self.learning_rate / self.bias_neg / (1 +  t ** self.learning_rate / self.bias_neg)
             # certainty = 1 -self.certainty_fun(t / self.bias, flatness=self.learning_rate)
         return certainty
 
@@ -167,14 +169,14 @@ class StochasticAPC(Environment):
         elif action == "negative" and reward < 0: return "FN"
         else: return "unknown"
 
-    def plotCertainty(self, tau=None, taus=None, title="Certainty over search time"):
+    def plotCertainty(self, tau=None, taus=None, title="Certainty over search time", caption=""):
         # taus must be a list of stopping points to plot
         if not isinstance(taus, list) and taus is not None: taus = [taus]
         elif taus is None and tau is not None and not isinstance(tau, list): taus = [tau]
         elif taus is None and tau is not None and isinstance(tau, list): taus = tau
         # ge the max time point to visualize
         max_t = 50 if taus is None else max(taus) * 1.2
-        T = np.arange(max_t * 1.2)
+        T = np.arange(1, max_t * 1.2, step=max_t * 1.2 / 200)
         # visualize the certainty curve for many values of t
         env_pos = copy.copy(self)
         env_pos.positive = True
@@ -187,16 +189,17 @@ class StochasticAPC(Environment):
         C2 = [env_neg.get_certainty(t) for t in T]
         # create the plot
         plt.figure(figsize=(7, 4))  # wide and flat
-        plt.plot(T, C1, color="blue", label="positive APC")
-        plt.plot(T, C2, color="red", label="negative APC")
+        plt.plot(T-1, C1, color="blue", label="$APC^+$")
+        plt.plot(T-1, C2, color="red", label="$APC^-$")
+        if caption != "":
+            plt.suptitle(caption, x=0.515, y=-0.01, fontsize=10, color='gray')  # subtitle near top
 
-        plt.axhline(y=env_pos.get_certainty(1), color='lightgray', linestyle='--') # certainty starting point
         if taus is not None:
             for tau in taus:
                 plt.axvline(x=tau, color='green', linestyle='--') # stopping point tau
 
         plt.xlabel("Search time t")
-        plt.ylabel("Certainty e(t)")
+        plt.ylabel("Certainty c(t)")
         plt.title(title)
         plt.ylim([0, 1])
         plt.grid(True)
@@ -236,3 +239,15 @@ class StochasticAPC(Environment):
         plt.grid(True)
         plt.legend()
         plt.show()
+
+
+def main():
+    bias_pos, bias_neg = 0.5, 0.5
+    lr = 1
+    env = StochasticAPC(bias_pos=bias_pos, bias_neg=bias_neg, learning_rate=lr, positive=True)
+    env.plotCertainty(caption=f"$b^+={bias_pos}, b^-={bias_neg}$")
+
+
+
+if __name__ == "__main__":
+    main()
